@@ -1,6 +1,18 @@
 import { QuartzConfig } from "./quartz/cfg"
 import * as Plugin from "./quartz/plugins"
 
+// get some env vars for pageTitle, suffix, locale, baseUrl
+const pageTitle = process.env.PAGE_TITLE || "Quartz v4"
+const pageTitleSuffix = process.env.PAGE_SUFFIX || ""
+const locale = process.env.LOCALE || "en-GB"
+const baseUrl = process.env.BASE_URL || "localhost:8080"
+const ignorePatterns = process.env.IGNORE_ADDITIONAL_PATTERNS?.split(",") || []
+const modifiedDatePriority = process.env.MODIFIED_DATE_PRIORITY?.split(",") || [
+  "frontmatter",
+  "git",
+  "filesystem",
+]
+
 /**
  * Quartz 4 Configuration
  *
@@ -8,16 +20,14 @@ import * as Plugin from "./quartz/plugins"
  */
 const config: QuartzConfig = {
   configuration: {
-    pageTitle: "Quartz 4",
-    pageTitleSuffix: "",
+    pageTitle,
+    pageTitleSuffix,
     enableSPA: true,
     enablePopovers: true,
-    analytics: {
-      provider: "plausible",
-    },
-    locale: "en-US",
-    baseUrl: "quartz.jzhao.xyz",
-    ignorePatterns: ["private", "templates", ".obsidian"],
+    analytics: null,
+    locale,
+    baseUrl,
+    ignorePatterns: ["private", "templates", ".obsidian"].concat(ignorePatterns),
     defaultDateType: "modified",
     theme: {
       fontOrigin: "googleFonts",
@@ -57,7 +67,7 @@ const config: QuartzConfig = {
     transformers: [
       Plugin.FrontMatter(),
       Plugin.CreatedModifiedDate({
-        priority: ["frontmatter", "git", "filesystem"],
+        priority: modifiedDatePriority,
       }),
       Plugin.SyntaxHighlighting({
         theme: {
@@ -89,7 +99,7 @@ const config: QuartzConfig = {
       Plugin.Favicon(),
       Plugin.NotFoundPage(),
       // Comment out CustomOgImages to speed up build time
-      Plugin.CustomOgImages(),
+      // Plugin.CustomOgImages(),
     ],
   },
 }
