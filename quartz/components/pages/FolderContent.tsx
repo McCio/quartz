@@ -31,7 +31,8 @@ export default ((opts?: Partial<FolderContentOptions>) => {
     const { tree, fileData, allFiles, cfg } = props
 
     const trie = (props.ctx.trie ??= trieFromAllFiles(allFiles))
-    const folder = trie.findNode(fileData.slug!.split("/"))
+    const searchBy = fileData.slug === "./index" ? [] : fileData.slug!.split("/")
+    const folder = trie.findNode(searchBy)
     if (!folder) {
       return null
     }

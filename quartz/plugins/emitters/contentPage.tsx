@@ -1,4 +1,3 @@
-import path from "path"
 import { QuartzEmitterPlugin } from "../types"
 import { QuartzComponentProps } from "../../components/types"
 import HeaderConstructor from "../../components/Header"
@@ -8,7 +7,6 @@ import { FullPageLayout } from "../../cfg"
 import { pathToRoot } from "../../util/path"
 import { defaultContentPageLayout, sharedPageComponents } from "../../../quartz.layout"
 import { Content } from "../../components"
-import { styleText } from "util"
 import { write } from "./helpers"
 import { BuildCtx } from "../../util/ctx"
 import { Node } from "unist"
@@ -75,26 +73,14 @@ export const ContentPage: QuartzEmitterPlugin<Partial<FullPageLayout>> = (userOp
     },
     async *emit(ctx, content, resources) {
       const allFiles = content.map((c) => c[1].data)
-      let containsIndex = false
 
       for (const [tree, file] of content) {
         const slug = file.data.slug!
-        if (slug === "index") {
-          containsIndex = true
-        }
 
-        // only process home page, non-tag pages, and non-index pages
-        if (slug.endsWith("/index") || slug.startsWith("tags/")) continue
+        // only process non-home page, non-tag pages, and non-index pages
+        if (slug === "index" || slug.endsWith("/index") || slug.startsWith("tags/")) continue
+
         yield processContent(ctx, tree, file.data, allFiles, opts, resources)
-      }
-
-      if (!containsIndex) {
-        console.log(
-          styleText(
-            "yellow",
-            `\nWarning: you seem to be missing an \`index.md\` home page file at the root of your \`${ctx.argv.directory}\` folder (\`${path.join(ctx.argv.directory, "index.md")} does not exist\`). This may cause errors when deploying.`,
-          ),
-        )
       }
     },
     async *partialEmit(ctx, content, resources, changeEvents) {
@@ -112,7 +98,7 @@ export const ContentPage: QuartzEmitterPlugin<Partial<FullPageLayout>> = (userOp
       for (const [tree, file] of content) {
         const slug = file.data.slug!
         if (!changedSlugs.has(slug)) continue
-        if (slug.endsWith("/index") || slug.startsWith("tags/")) continue
+        if (slug === "index" || slug.endsWith("/index") || slug.startsWith("tags/")) continue
 
         yield processContent(ctx, tree, file.data, allFiles, opts, resources)
       }

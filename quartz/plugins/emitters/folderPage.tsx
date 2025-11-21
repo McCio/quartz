@@ -4,7 +4,7 @@ import HeaderConstructor from "../../components/Header"
 import BodyConstructor from "../../components/Body"
 import { pageResources, renderPage } from "../../components/renderPage"
 import { ProcessedContent, QuartzPluginData, defaultProcessedContent } from "../vfile"
-import { FullPageLayout } from "../../cfg"
+import { FullPageLayout, GlobalConfiguration } from "../../cfg"
 import path from "path"
 import {
   FullSlug,
@@ -17,7 +17,7 @@ import {
 import { defaultListPageLayout, sharedPageComponents } from "../../../quartz.layout"
 import { FolderContent } from "../../components"
 import { write } from "./helpers"
-import { i18n, TRANSLATIONS } from "../../i18n"
+import { i18n } from "../../i18n"
 import { BuildCtx } from "../../util/ctx"
 import { StaticResources } from "../../util/resources"
 interface FolderPageOptions extends FullPageLayout {
@@ -62,7 +62,7 @@ async function* processFolderInfo(
 function computeFolderInfo(
   folders: Set<SimpleSlug>,
   content: ProcessedContent[],
-  locale: keyof typeof TRANSLATIONS,
+  cfg: GlobalConfiguration,
 ): Record<SimpleSlug, ProcessedContent> {
   // Create default folder descriptions
   const folderInfo: Record<SimpleSlug, ProcessedContent> = Object.fromEntries(
@@ -71,7 +71,10 @@ function computeFolderInfo(
       defaultProcessedContent({
         slug: joinSegments(folder, "index") as FullSlug,
         frontmatter: {
-          title: `${i18n(locale).pages.folderContent.folder}: ${folder}`,
+          title:
+            folder !== "."
+              ? `${i18n(cfg.locale).pages.folderContent.folder}: ${folder}`
+              : cfg.pageTitle,
           tags: [],
         },
       }),
@@ -135,14 +138,12 @@ export const FolderPage: QuartzEmitterPlugin<Partial<FolderPageOptions>> = (user
       const folders: Set<SimpleSlug> = new Set(
         allFiles.flatMap((data) => {
           return data.slug
-            ? _getFolders(data.slug).filter(
-                (folderName) => folderName !== "." && folderName !== "tags",
-              )
+            ? _getFolders(data.slug).filter((folderName) => folderName !== "tags")
             : []
         }),
       )
 
-      const folderInfo = computeFolderInfo(folders, content, cfg.locale)
+      const folderInfo = computeFolderInfo(folders, content, cfg)
       yield* processFolderInfo(ctx, folderInfo, allFiles, opts, resources)
     },
     async *partialEmit(ctx, content, resources, changeEvents) {
@@ -154,15 +155,13 @@ export const FolderPage: QuartzEmitterPlugin<Partial<FolderPageOptions>> = (user
       for (const changeEvent of changeEvents) {
         if (!changeEvent.file) continue
         const slug = changeEvent.file.data.slug!
-        const folders = _getFolders(slug).filter(
-          (folderName) => folderName !== "." && folderName !== "tags",
-        )
+        const folders = _getFolders(slug).filter((folderName) => folderName !== "tags")
         folders.forEach((folder) => affectedFolders.add(folder))
       }
 
       // If there are affected folders, rebuild their pages
       if (affectedFolders.size > 0) {
-        const folderInfo = computeFolderInfo(affectedFolders, content, cfg.locale)
+        const folderInfo = computeFolderInfo(affectedFolders, content, cfg)
         yield* processFolderInfo(ctx, folderInfo, allFiles, opts, resources)
       }
     },
