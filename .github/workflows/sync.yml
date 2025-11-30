@@ -1,0 +1,41 @@
+# heavily inspired from: https://github.com/imba-tjd/rebase-upstream-action/blob/master/action.yml
+name: Rebase Upstream
+on:
+  schedule:
+  - cron: "7 3 * * 0"  # run once a week
+  workflow_dispatch:   # run manually
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@master
+      with:
+        fetch-depth: 10 # Greater than the number of commits you made on top of upstream
+    - run: |
+        set -ex
+
+        UPSTREAM_REPO="https://github.com/jackyzha0/quartz.git"
+        UPSTREAM_BRANCH=v4
+        UPSTREAM_DEPTH=50 # Greater than the number of commits the upstream made in a period
+
+        git remote add upstream "$UPSTREAM_REPO"
+        git fetch upstream "$UPSTREAM_BRANCH" --depth=$UPSTREAM_DEPTH
+
+        git config --local user.email "${GITHUB_REPOSITORY_OWNER}[bot]@users.noreply.github.com"
+        git config --local user.name  "Github Actions - Rebase Upstream"
+
+        git rebase "upstream/$UPSTREAM_BRANCH"
+
+        if [ "$(git status | grep diverged)" ]; then
+          ORIGIN_URL=$(git remote get-url origin);
+          git remote set-url origin "${ORIGIN_URL/https:\/\//https:\/\/${{ github.token }}@}"
+          git fetch origin $(git branch --show-current)
+          git push origin $(git branch --show-current) --force-with-lease
+        fi
+      shell: bash
+    #- uses: imba-tjd/rebase-upstream-action@master
+    #  with:
+    #    upstream: jackyzha0/quartz
+    #    branch:   v4
+
