@@ -101,12 +101,15 @@ export const ContentIndex: QuartzEmitterPlugin<Partial<Options>> = (opts) => {
       const linkIndex: ContentIndexMap = new Map()
       for (const [tree, file] of content) {
         const slug = file.data.slug!
+        const filePath = file.data.relativePath!
+        const isPDF = filePath.endsWith(".pdf")
         const date = getDate(ctx.cfg.configuration, file.data) ?? new Date()
-        if (opts?.includeEmptyFiles || (file.data.text && file.data.text !== "")) {
+        // Index PDFs even if they have no .text property
+        if (isPDF || opts?.includeEmptyFiles || (file.data.text && file.data.text !== "")) {
           linkIndex.set(slug, {
             slug,
-            filePath: file.data.relativePath!,
-            title: file.data.frontmatter?.title!,
+            filePath,
+            title: !isPDF ? file.data.frontmatter?.title! : filePath.split("/").pop() || slug,
             links: file.data.links ?? [],
             tags: file.data.frontmatter?.tags ?? [],
             content: file.data.text ?? "",
