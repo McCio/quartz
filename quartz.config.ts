@@ -12,6 +12,7 @@ const modifiedDatePriority = process.env.MODIFIED_DATE_PRIORITY?.split(",") || [
   "git",
   "filesystem",
 ]
+const relatedKeys = process.env.RELATED_KEYS?.split(",") || ["related"]
 
 /**
  * Quartz 4 Configuration
@@ -65,7 +66,7 @@ const config: QuartzConfig = {
   },
   plugins: {
     transformers: [
-      Plugin.FrontMatter(),
+      Plugin.FrontMatter({ relatedKeys }),
       Plugin.CreatedModifiedDate({
         priority: modifiedDatePriority,
       }),

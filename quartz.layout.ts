@@ -1,7 +1,7 @@
 import { PageLayout, SharedLayout } from "./quartz/cfg"
 import * as Component from "./quartz/components"
 
-const graphDepth = process.env.GRAPH_DEPTH || 1
+const graphDepth = Number(process.env.GRAPH_DEPTH ?? 1)
 
 // components shared across all pages
 export const sharedPageComponents: SharedLayout = {
@@ -45,6 +45,7 @@ export const defaultContentPageLayout: PageLayout = {
       },
     }),
     Component.DesktopOnly(Component.TableOfContents()),
+    Component.Related(),
     Component.Backlinks(),
   ],
 }

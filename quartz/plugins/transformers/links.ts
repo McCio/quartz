@@ -159,6 +159,13 @@ export const CrawlLinks: QuartzTransformerPlugin<Partial<Options>> = (userOpts) 
               }
             })
 
+            for (const r of file.data.frontmatter?.related ?? []) {
+              const resolved = ctx.allSlugs.find((s) => {
+                const simple = simplifySlug(s)
+                return simple === r || simple.endsWith("/" + r)
+              })
+              outgoing.add(resolved ? simplifySlug(resolved) : r)
+            }
             file.data.links = [...outgoing]
           }
         },

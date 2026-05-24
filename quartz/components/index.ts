@@ -20,6 +20,7 @@ import DesktopOnly from "./DesktopOnly"
 import MobileOnly from "./MobileOnly"
 import RecentNotes from "./RecentNotes"
 import Breadcrumbs from "./Breadcrumbs"
+import Related from "./Related"
 import Comments from "./Comments"
 import Flex from "./Flex"
 import ConditionalRender from "./ConditionalRender"
@@ -49,5 +50,6 @@ export {
   Breadcrumbs,
   Comments,
   Flex,
+  Related,
   ConditionalRender,
 }

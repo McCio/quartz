@@ -3,18 +3,29 @@ import remarkFrontmatter from "remark-frontmatter"
 import { QuartzTransformerPlugin } from "../types"
 import yaml from "js-yaml"
 import toml from "toml"
-import { FilePath, FullSlug, getFileExtension, slugifyFilePath, slugTag } from "../../util/path"
+import {
+  FilePath,
+  FullSlug,
+  getFileExtension,
+  SimpleSlug,
+  simplifySlug,
+  slugifyFilePath,
+  slugTag,
+} from "../../util/path"
 import { QuartzPluginData } from "../vfile"
 import { i18n } from "../../i18n"
+import { wikilinkRegex } from "./ofm"
 
 export interface Options {
   delimiters: string | [string, string]
   language: "yaml" | "toml"
+  relatedKeys: string[]
 }
 
 const defaultOptions: Options = {
   delimiters: "---",
   language: "yaml",
+  relatedKeys: ["related"],
 }
 
 function coalesceAliases(data: { [key: string]: any }, aliases: string[]) {
@@ -98,6 +109,28 @@ export const FrontMatter: QuartzTransformerPlugin<Partial<Options>> = (userOpts)
             const cssclasses = coerceToArray(coalesceAliases(data, ["cssclasses", "cssclass"]))
             if (cssclasses) data.cssclasses = cssclasses
 
+            // parse related links from frontmatter keys
+            const related = opts.relatedKeys.flatMap((key) => coerceToArray(data[key]) ?? [])
+            if (related.length > 0) {
+              // Normalize entries:
+              // - If wikilink, extract the target and treat it like an alias
+              // - Otherwise, treat plain text as alias-like too
+              const normalized: string[] = []
+              const wikilinkOnce = new RegExp(wikilinkRegex.source)
+              for (const r of related) {
+                const match = wikilinkOnce.exec(r)
+                if (match) {
+                  const rawFp = match[1]?.trim() ?? ""
+                  if (rawFp) normalized.push(rawFp)
+                } else {
+                  normalized.push(r)
+                }
+              }
+
+              // Use existing alias-to-slug pipeline, then simplify
+              data.related = getAliasSlugs(normalized).map((slug) => simplifySlug(slug))
+            }
+
             const socialImage = coalesceAliases(data, ["socialImage", "image", "cover"])
 
             const created = coalesceAliases(data, ["created", "date"])
@@ -152,6 +185,7 @@ declare module "vfile" {
         cssclasses: string[]
         socialImage: string
         comments: boolean | string
+        related: SimpleSlug[]
       }>
   }
 }
