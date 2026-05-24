@@ -40,11 +40,21 @@ export const Assets: QuartzEmitterPlugin = () => {
         if (ext === ".md") continue
 
         if (changeEvent.type === "add" || changeEvent.type === "change") {
-          yield copyFile(ctx.argv, changeEvent.path)
+          try {
+            yield copyFile(ctx.argv, changeEvent.path)
+          } catch (err: unknown) {
+            // file may have been removed before we could copy it (e.g. transient temp files)
+            if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
+          }
         } else if (changeEvent.type === "delete") {
           const name = slugifyFilePath(changeEvent.path)
           const dest = joinSegments(ctx.argv.output, name) as FilePath
-          await fs.promises.unlink(dest)
+          try {
+            await fs.promises.unlink(dest)
+          } catch (err: unknown) {
+            // file may not have been copied to output in the first place
+            if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err
+          }
         }
       }
     },
