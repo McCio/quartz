@@ -263,6 +263,30 @@ You can see a list of all plugins and their configuration options [[tags/plugin|
 
 If you'd like to make your own plugins, see the [[making plugins|making custom plugins]] guide.
 
+## Environment Variable Overrides
+
+Any field in `quartz.config.yaml` can be overridden at runtime using environment variables, without editing the config file. This is useful for CI/CD pipelines, Docker deployments, and per-environment configuration.
+
+Two namespaces are supported:
+
+- `QUARTZ_<KEY>` — overrides `configuration.<key>`. The key is mapped from camelCase to `SCREAMING_SNAKE_CASE`. For example, `QUARTZ_BASE_URL=example.com` overrides `configuration.baseUrl`.
+- `PLUGIN_<NAME>_<KEY>` — overrides an option on a specific plugin. For example, `PLUGIN_CONTENT_INDEX_RSS_LIMIT=5` overrides the `rssLimit` option on the `content-index` plugin.
+
+Values are parsed as JSON if the string is valid JSON; otherwise they are used as plain strings.
+
+```shell
+# Override the base URL at build time
+QUARTZ_BASE_URL=example.com npx quartz build
+
+# Override a plugin option
+PLUGIN_CONTENT_INDEX_RSS_LIMIT=5 npx quartz build
+```
+
+The name segment in `PLUGIN_<NAME>_<KEY>` corresponds to the plugin's canonical name — the `name` field in the object source, or the repository name for string sources. If you installed a fork using `--name`, the canonical name you specified is used. See [[cli/plugin#add|plugin add --name]] for details.
+
+> [!note]
+> Environment variable overrides are applied after `quartz.config.yaml` is loaded and before the build starts. They do not modify the config file itself.
+
 ## Fonts
 
 Fonts can be specified as a simple string or with advanced options in `quartz.config.yaml`:
