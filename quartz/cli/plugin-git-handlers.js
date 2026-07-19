@@ -1214,8 +1214,13 @@ export async function handlePluginAdd(
       }
 
       if (fs.existsSync(pluginDir)) {
-        console.log(styleText("yellow", `⚠ ${name} already exists. Use 'update' to refresh.`))
-        continue
+        if (nameOverride) {
+          console.log(styleText("cyan", `→ ${name}: replacing existing installation...`))
+          fs.rmSync(pluginDir, { recursive: true })
+        } else {
+          console.log(styleText("yellow", `⚠ ${name} already exists. Use 'update' to refresh.`))
+          continue
+        }
       }
 
       if (local) {
@@ -1311,9 +1316,21 @@ export async function handlePluginAdd(
   const pluginsJson = readPluginsJson()
   if (pluginsJson?.plugins) {
     for (const { pluginDir, source, configSource } of addedPlugins) {
+      const effectiveSource = configSource ?? source
+      const pluginName = extractPluginName(effectiveSource)
+      const existingIndex = pluginsJson.plugins.findIndex(
+        (e) => extractPluginName(e.source) === pluginName,
+      )
+      if (existingIndex !== -1) {
+        if (nameOverride) {
+          pluginsJson.plugins[existingIndex].source = effectiveSource
+        }
+        continue
+      }
+
       const manifest = readManifestFromPackageJson(pluginDir)
       const newEntry = {
-        source: configSource ?? source,
+        source: effectiveSource,
         enabled: manifest?.defaultEnabled ?? true,
         options: manifest?.defaultOptions ?? {},
         order: manifest?.defaultOrder ?? 50,
@@ -1766,3 +1783,4 @@ export async function handlePluginPrune({ dryRun = false } = {}) {
 export async function handlePluginResolve({ dryRun = false } = {}) {
   return handlePluginInstallUnified({ fromConfig: true, dryRun })
 }
+
