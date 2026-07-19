@@ -245,6 +245,92 @@ async function getManifest(source: PluginSource): Promise<PluginManifest | null>
   return (await readManifestFromPackageJson(source)) ?? (await resolvePluginManifest(source))
 }
 
+// ─── Env-var overrides ───────────────────────────────────────────────────────
+// QUARTZ_{CONF}          → configuration.<camelCase(CONF)>
+// PLUGIN_{NAME}_{CONF}   → plugin options; use "__" in CONF for nesting
+//                          e.g. PLUGIN_GRAPH_LOCAL_GRAPH__DEPTH=1
+
+function shortPluginName(name: string): string {
+  return name.replace(/^quartz-plugin-/, "").replace(/^quartz-community-/, "")
+}
+
+function toScreamingSnake(s: string): string {
+  return s.toUpperCase().replace(/-/g, "_")
+}
+
+function toCamelCase(screaming: string): string {
+  return screaming.toLowerCase().replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase())
+}
+
+function parseEnvValue(raw: string): unknown {
+  if (raw === "null") return null
+  if (raw === "true") return true
+  if (raw === "false") return false
+  const num = Number(raw)
+  if (!isNaN(num) && raw.trim() !== "") return num
+  if (raw.includes(",")) return raw.split(",").map((v) => v.trim()).filter((v) => v !== "")
+  return raw
+}
+
+function setAtPath(obj: Record<string, unknown>, path: string[], value: unknown): void {
+  let cur: Record<string, unknown> = obj
+  for (let i = 0; i < path.length - 1; i++) {
+    const k = path[i]
+    if (cur[k] == null || typeof cur[k] !== "object") cur[k] = {}
+    cur = cur[k] as Record<string, unknown>
+  }
+  cur[path[path.length - 1]] = value
+}
+
+function applyEnvOverrides(json: QuartzPluginsJson): void {
+  const cfg = json.configuration as Record<string, unknown>
+
+  for (const [key, val] of Object.entries(process.env)) {
+    if (!key.startsWith("QUARTZ_") || val === undefined || val === "") continue
+    cfg[toCamelCase(key.slice("QUARTZ_".length))] = parseEnvValue(val)
+  }
+
+  const pluginMap = new Map<string, number>()
+  for (let i = 0; i < json.plugins.length; i++) {
+    const name = extractPluginName(json.plugins[i].source)
+    const shortKey = toScreamingSnake(shortPluginName(name))
+    const fullKey = toScreamingSnake(name)
+    pluginMap.set(fullKey, i)
+    if (shortKey !== fullKey) {
+      if (pluginMap.has(shortKey)) {
+        console.warn(
+          `[quartz] PLUGIN_${shortKey}_* is ambiguous (multiple plugins share this short name). ` +
+            `Use PLUGIN_${fullKey}_* instead.`,
+        )
+      } else {
+        pluginMap.set(shortKey, i)
+      }
+    }
+  }
+  const sortedNames = [...pluginMap.keys()].sort((a, b) => b.length - a.length)
+
+  for (const [key, val] of Object.entries(process.env)) {
+    if (!key.startsWith("PLUGIN_") || val === undefined || val === "") continue
+    const rest = key.slice("PLUGIN_".length)
+    let matchedName: string | null = null
+    for (const name of sortedNames) {
+      if (rest.startsWith(name + "_")) {
+        matchedName = name
+        break
+      }
+    }
+    if (!matchedName) continue
+    const idx = pluginMap.get(matchedName)!
+    const optPath = rest.slice(matchedName.length + 1)
+    if (!optPath) continue
+    const pathSegments = optPath.split("__").map(toCamelCase)
+    const entry = json.plugins[idx]
+    if (!entry.options) entry.options = {}
+    setAtPath(entry.options, pathSegments, parseEnvValue(val))
+  }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 export async function loadQuartzConfig(
   configOverrides?: Partial<GlobalConfiguration>,
 ): Promise<QuartzConfig> {
@@ -255,6 +341,8 @@ export async function loadQuartzConfig(
     const oldConfig = await import("../../../quartz")
     return oldConfig.default
   }
+
+  applyEnvOverrides(json)
 
   const configuration = {
     ...(json.configuration as unknown as GlobalConfiguration),
@@ -646,6 +734,8 @@ export async function loadQuartzLayout(layoutOverrides?: {
     const oldLayout = await import("../../../quartz")
     return oldLayout.layout
   }
+
+  applyEnvOverrides(json)
 
   const enabledWithLayout = json.plugins.filter((e) => e.enabled)
   const layoutConfig = json.layout ?? {}
