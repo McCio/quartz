@@ -1,0 +1,146 @@
+name: Rebase Upstream (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      upstream_repo:
+        description: "Upstream GitHub repo (e.g. jackyzha0/quartz)"
+        required: true
+        type: string
+      upstream_branch:
+        description: "Upstream branch to rebase onto"
+        required: false
+        type: string
+        default: main
+      rebuild_dist:
+        description: "Rebuild dist/ after rebase and commit as the last commit"
+        required: false
+        type: boolean
+        default: false
+      fork_plugins:
+        description: >-
+          Newline-separated list of fork plugin add commands to re-run after each rebase,
+          one per line in the form "source --name canonical"
+          (e.g. "github:Org/repo --name plugin-name").
+        required: false
+        type: string
+        default: ""
+      remove_plugins:
+        description: >-
+          Newline-separated list of canonical plugin names to remove after each rebase
+          (e.g. "ox-hugo"). Runs before prune.
+        required: false
+        type: string
+        default: ""
+    outputs:
+      changed:
+        description: "Whether new commits were pushed to the fork"
+        value: ${{ jobs.sync.outputs.changed }}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.push.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        if: inputs.rebuild_dist || inputs.fork_plugins != ''
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Rebase onto upstream
+        id: rebase
+        run: |
+          set -e
+          export GIT_EDITOR=true
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "GitHub Actions - Rebase Upstream"
+          git remote add upstream "https://github.com/${{ inputs.upstream_repo }}.git"
+          git fetch upstream "${{ inputs.upstream_branch }}"
+
+          # Drop previous sentinel commit so it doesn't conflict during rebase.
+          # The sentinel bundles dist/ + lockfile fork entries; both are discarded here
+          # and rebuilt from scratch after the rebase.
+          LAST_MSG=$(git log -1 --format=%s)
+          if [ "$LAST_MSG" = "chore: rebuild dist after upstream sync" ]; then
+            echo "Dropping previous sentinel commit before rebasing..."
+            git reset --mixed HEAD~1
+            git checkout -- dist/ 2>/dev/null || true
+            git checkout -- quartz.lock.json 2>/dev/null || true
+          fi
+
+          UPSTREAM_COUNT=$(git rev-list HEAD..upstream/${{ inputs.upstream_branch }} --count)
+          if [ "$UPSTREAM_COUNT" -eq 0 ]; then
+            echo "No new upstream commits."
+            echo "rebased=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Rebase; auto-resolve dist/ and quartz.lock.json conflicts.
+          # NOTE: in 'git rebase', --ours = the rebase target (upstream branch),
+          # keeping upstream's community-plugin updates. Source overrides re-applied below.
+          REBASE_OK=true
+          git rebase "upstream/${{ inputs.upstream_branch }}" || REBASE_OK=false
+          while [ "$REBASE_OK" = "false" ]; do
+            CONFLICTS=$(git diff --name-only --diff-filter=U)
+            AUTO=$(echo "$CONFLICTS" | grep -E "^dist/|^quartz\.lock\.json$" || true)
+            MANUAL=$(echo "$CONFLICTS" | grep -vE "^dist/|^quartz\.lock\.json$" | grep . || true)
+            if [ -n "$MANUAL" ]; then
+              echo "::error::Conflicts require manual resolution:"
+              echo "$MANUAL"
+              git rebase --abort
+              exit 1
+            fi
+            for f in $AUTO; do
+              git checkout --ours -- "$f"
+              git add -- "$f"
+            done
+            REBASE_OK=true
+            git rebase --continue || REBASE_OK=false
+          done
+
+          echo "rebased=true" >> "$GITHUB_OUTPUT"
+
+      - name: Rebuild dist and restore fork lockfile entries
+        if: (inputs.rebuild_dist || inputs.fork_plugins != '' || inputs.remove_plugins != '') && steps.rebase.outputs.rebased == 'true'
+        env:
+          FORK_PLUGINS: ${{ inputs.fork_plugins }}
+          REMOVE_PLUGINS: ${{ inputs.remove_plugins }}
+        run: |
+          npm ci
+          if [ "${{ inputs.rebuild_dist }}" = "true" ]; then
+            npm run build
+            git add dist/
+          fi
+          if [ -n "$FORK_PLUGINS" ]; then
+            echo "$FORK_PLUGINS" | while IFS= read -r args; do
+              [ -n "$args" ] && npx quartz plugin add $args
+            done
+          fi
+          if [ -n "$REMOVE_PLUGINS" ]; then
+            echo "$REMOVE_PLUGINS" | while IFS= read -r name; do
+              [ -n "$name" ] && npx quartz plugin remove "$name"
+            done
+          fi
+          npx quartz plugin prune
+          git add quartz.lock.json
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: rebuild dist after upstream sync"
+          fi
+
+      - name: Push
+        id: push
+        run: |
+          if [ "${{ steps.rebase.outputs.rebased }}" != "true" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git remote set-url origin "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
+          git push origin $(git branch --show-current) --force-with-lease
+          echo "changed=true" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,64 @@
+name: Sync Upstream & Plugins
+
+on:
+  schedule:
+    - cron: "7 3 * * 0"
+  workflow_dispatch:
+
+jobs:
+  sync-plugin-folder-page:
+    uses: ./.github/workflows/_sync-plugin.yml
+    with:
+      repo: McCio/quartz-plugin-folder-page
+    secrets:
+      SYNC_GH_TOKEN: ${{ secrets.SYNC_GH_TOKEN }}
+
+  sync-plugin-content-page:
+    uses: ./.github/workflows/_sync-plugin.yml
+    with:
+      repo: McCio/quartz-plugin-content-page
+    secrets:
+      SYNC_GH_TOKEN: ${{ secrets.SYNC_GH_TOKEN }}
+
+  sync-plugin-content-index:
+    uses: ./.github/workflows/_sync-plugin.yml
+    with:
+      repo: McCio/quartz-plugin-content-index
+    secrets:
+      SYNC_GH_TOKEN: ${{ secrets.SYNC_GH_TOKEN }}
+
+  sync-plugin-related:
+    uses: ./.github/workflows/_sync-plugin.yml
+    with:
+      repo: McCio/quartz-plugin-related
+    secrets:
+      SYNC_GH_TOKEN: ${{ secrets.SYNC_GH_TOKEN }}
+
+  sync-core:
+    uses: ./.github/workflows/_rebase-upstream.yml
+    with:
+      upstream_repo: jackyzha0/quartz
+      upstream_branch: v5
+      fork_plugins: |
+        github:McCio/quartz-plugin-folder-page --name folder-page
+        github:McCio/quartz-plugin-content-page --name content-page
+        github:McCio/quartz-plugin-content-index --name content-index
+        github:McCio/quartz-plugin-related --name related
+      remove_plugins: |
+        ox-hugo
+        roam
+        quartz-themes
+        obsidian-plugin-excalidraw
+        stacked-pages
+
+  docker-build:
+    needs: [sync-plugin-folder-page, sync-plugin-content-page, sync-plugin-content-index, sync-plugin-related, sync-core]
+    if: >-
+      always() &&
+      (needs.sync-core.outputs.changed == 'true' ||
+       needs.sync-plugin-folder-page.outputs.changed == 'true' ||
+       needs.sync-plugin-content-page.outputs.changed == 'true' ||
+       needs.sync-plugin-content-index.outputs.changed == 'true' ||
+       needs.sync-plugin-related.outputs.changed == 'true')
+    uses: ./.github/workflows/docker-build-push.yaml
+    secrets: inherit
