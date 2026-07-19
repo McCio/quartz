@@ -82,8 +82,10 @@ async function buildQuartz(argv: Argv, mut: Mutex, clientRefresh: () => void) {
   perf.addEvent("glob")
   const allFiles = await glob("**/*.*", argv.directory, cfg.configuration.ignorePatterns)
   const markdownPaths = allFiles.filter((fp) => fp.endsWith(".md")).sort()
+  const includePDFs = cfg.configuration.includePDFs !== false
+  const pdfPaths = includePDFs ? allFiles.filter((fp) => fp.endsWith(".pdf")).sort() : []
   console.log(
-    `Found ${markdownPaths.length} input files from \`${argv.directory}\` in ${perf.timeSince("glob")}`,
+    `Found ${markdownPaths.length} input files${includePDFs ? ` (${pdfPaths.length} PDFs)` : ""} from \`${argv.directory}\` in ${perf.timeSince("glob")}`,
   )
 
   const filePaths = markdownPaths.map((fp) => joinSegments(argv.directory, fp) as FilePath)
@@ -92,11 +94,23 @@ async function buildQuartz(argv: Argv, mut: Mutex, clientRefresh: () => void) {
 
   const parsedFiles = await parseMarkdown(ctx, filePaths)
   reportSlugCollisions(parsedFiles)
-  const filteredContent = filterContent(ctx, parsedFiles)
+  const { defaultProcessedContent } = await import("./plugins/vfile")
+  const pdfContents: ProcessedContent[] = pdfPaths.map((fp) => {
+    const slug = slugifyFilePath(fp as FilePath)
+    return defaultProcessedContent({
+      slug,
+      filePath: fp as FilePath,
+      relativePath: fp as FilePath,
+      frontmatter: { title: (fp as string).split("/").pop()!.replace(/\.pdf$/i, ""), tags: [] },
+    })
+  })
+
+  const allProcessedFiles = [...parsedFiles, ...pdfContents]
+  const filteredContent = filterContent(ctx, allProcessedFiles)
 
   await emitContent(ctx, filteredContent)
   console.log(
-    styleText("green", `Done processing ${markdownPaths.length} files in ${perf.timeSince()}`),
+    styleText("green", `Done processing ${markdownPaths.length} files${includePDFs ? ` (${pdfContents.length} PDFs)` : ""} in ${perf.timeSince()}`),
   )
   release()
 
