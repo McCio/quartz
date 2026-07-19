@@ -81,6 +81,8 @@ export interface GlobalConfiguration {
    * Region Codes: https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
    */
   locale: ValidLocale
+  /** Whether to include PDF files in the content index and folder listings (default: true) */
+  includePDFs?: boolean
 }
 
 export interface QuartzConfig {
