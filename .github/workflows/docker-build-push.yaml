@@ -8,12 +8,19 @@ on:
     branches: [v5]
     paths:
       - .github/workflows/docker-build-push.yaml
+      - .dockerignore
+      - Dockerfile
       - quartz/**
+      - package*.json
+      - quartz*
+      - globals.d.ts
+      - index.d.ts
+      - tsconfig.json
+  workflow_call:
   workflow_dispatch:
 
 jobs:
   build:
-    if: ${{ github.repository == 'jackyzha0/quartz' }} # Comment this out if you want to publish your own images on a fork!
     runs-on: ubuntu-latest
     steps:
       - name: Set lowercase repository owner environment variable
@@ -21,7 +28,7 @@ jobs:
           echo "OWNER_LOWERCASE=${OWNER,,}" >> ${GITHUB_ENV}
         env:
           OWNER: "${{ github.repository_owner }}"
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 1
       - name: Inject slug/short variables
@@ -31,7 +38,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
         with:
-          install: true
           driver-opts: |
             image=moby/buildkit:master
             network=host
@@ -68,6 +74,7 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=semver,pattern={{major}}.{{minor}}.{{patch}}
+            type=ref,event=branch
             type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
             type=raw,value=sha-${{ env.GITHUB_SHA_SHORT }}
           labels: |
@@ -85,4 +92,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags || steps.meta-pr.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels || steps.meta-pr.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha
+          cache-to: type=gha,mode=max
