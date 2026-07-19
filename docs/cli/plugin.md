@@ -44,6 +44,22 @@ Local plugins are symlinked into `.quartz/plugins/`, so any changes you make to 
 
 When a branch is specified, it is stored in the lockfile. All subsequent commands (`install`, `prune`) will respect that branch automatically. Use `install --latest` to fetch the latest commit from that branch.
 
+#### Flags
+
+- `--name <canonical-name>`: Install the plugin under a custom canonical name instead of the name derived from the repository URL. If a plugin with that canonical name is already installed, this force-replaces it and updates the `source` entry in `quartz.config.yaml` in-place.
+
+When `--name` is used, the source stored in `quartz.config.yaml` becomes an object rather than a plain string, so that both the repository URL and the canonical name are preserved:
+
+```yaml title="quartz.config.yaml"
+plugins:
+  - source:
+      repo: github:McCio/quartz-plugin-related
+      name: related
+    enabled: true
+```
+
+This is the same object source format described under [[configuration#Advanced Source Options|Advanced Source Options]].
+
 > [!tip]
 > `plugin add` also accepts `--concurrency` / `-c` to limit how many remote repositories are cloned and built at the same time. This is the same flag documented under [[#install]] and is useful when adding several plugins at once on low-end hardware.
 
@@ -184,6 +200,25 @@ When setting up on a new machine or in CI, `install --from-config` ensures your 
 
 ```shell
 npx quartz plugin install --from-config
+```
+
+### Installing a Fork Under a Canonical Name
+
+To install a fork of a community plugin under its community canonical name — so that environment variable overrides, config keys, and lockfile entries all use the canonical name rather than the fork's repository name:
+
+```shell
+npx quartz plugin add github:McCio/quartz-plugin-related --name related
+npx quartz plugin add github:McCio/quartz-plugin-content-index --name content-index
+```
+
+Quartz writes the object source form to `quartz.config.yaml` automatically, recording both the fork URL and the name:
+
+```yaml title="quartz.config.yaml"
+plugins:
+  - source:
+      repo: github:McCio/quartz-plugin-related
+      name: related
+    enabled: true
 ```
 
 ### Testing with Branches

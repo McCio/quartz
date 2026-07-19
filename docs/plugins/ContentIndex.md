@@ -23,7 +23,9 @@ This plugin accepts the following configuration options:
 - `rssLimit`: Defines the maximum number of entries to include in the RSS feed, helping to focus on the most recent or relevant content. Defaults to `10`.
 - `rssFullHtml`: If `true`, the RSS feed includes the full rendered HTML content of each page. Defaults to `false`.
 - `rssSlug`: Slug to the generated RSS feed XML file. Defaults to `"index"`.
+- `rssRecentNotesText`: The label used in the RSS feed for the recent notes section. Defaults to `"Recent notes"`.
 - `includeEmptyFiles`: If `true` (default), content files with no body text are included in the generated index and resources.
+- `includePDFs`: If `true` (default), PDF files in the content directory are included in the content index and made accessible. Set to `false` to exclude PDFs.
 
 ## API
 
