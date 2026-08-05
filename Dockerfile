@@ -9,16 +9,14 @@ COPY package.json package-lock.json* .npmrc* ./
 ENV NPM_CONFIG_USERCONFIG=/usr/src/app/.npmrc
 RUN npm install
 
-FROM builder AS plugins
-
 COPY quartz/bootstrap-cli.mjs ./quartz/bootstrap-cli.mjs
 COPY quartz/cli/ ./quartz/cli/
 COPY quartz.lock.json* quartz.config.yaml ./
-RUN npx quartz plugin install
+RUN mkdir -p .quartz/plugins && npx quartz plugin install
 
 FROM node:22-slim
 WORKDIR /usr/src/app
 COPY --from=builder /usr/src/app/node_modules ./node_modules
-COPY --from=plugins /usr/src/app/.quartz/ ./.quartz/
+COPY --from=builder /usr/src/app/.quartz/ ./.quartz/
 COPY . .
 CMD ["npx", "quartz", "build", "--serve"]
