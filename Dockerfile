@@ -7,7 +7,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 WORKDIR /usr/src/app
 COPY package.json package-lock.json* .npmrc* ./
 ENV NPM_CONFIG_USERCONFIG=/usr/src/app/.npmrc
-RUN npm install
+RUN npm ci
 
 COPY quartz/bootstrap-cli.mjs ./quartz/bootstrap-cli.mjs
 COPY quartz/cli/ ./quartz/cli/
