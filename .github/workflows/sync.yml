@@ -50,6 +50,8 @@ jobs:
         quartz-themes
         obsidian-plugin-excalidraw
         stacked-pages
+    secrets:
+      SYNC_GH_TOKEN: ${{ secrets.SYNC_GH_TOKEN }}
 
   docker-build:
     needs: [sync-plugin-folder-page, sync-plugin-content-page, sync-plugin-content-index, sync-plugin-related, sync-core]
