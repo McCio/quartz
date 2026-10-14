@@ -4,26 +4,26 @@
     "content-index": {
       "source": "github:McCio/quartz-plugin-content-index",
       "resolved": "https://github.com/McCio/quartz-plugin-content-index.git",
-      "commit": "45ae729fd0afa8b968636aa7d7e931f7a975f64d",
-      "installedAt": "2026-08-05T18:22:09.245Z"
+      "commit": "a07ab0e0758809cb60d25abbaa0786c6a8890bd7",
+      "installedAt": "2026-10-14T21:28:19.332Z"
     },
     "content-page": {
       "source": "github:McCio/quartz-plugin-content-page",
       "resolved": "https://github.com/McCio/quartz-plugin-content-page.git",
-      "commit": "d61dcabb9ccc22d4753d7cf4257c7bc6db046196",
-      "installedAt": "2026-08-05T18:21:59.173Z"
+      "commit": "2b6490cdc3b098e7159b363bd34fdb258d973ae6",
+      "installedAt": "2026-10-14T21:28:13.264Z"
     },
     "folder-page": {
       "source": "github:McCio/quartz-plugin-folder-page",
       "resolved": "https://github.com/McCio/quartz-plugin-folder-page.git",
-      "commit": "e05b247e0e227db1ee823d3970baf16c5b23fd7e",
-      "installedAt": "2026-08-05T18:21:40.910Z"
+      "commit": "1a39626e225bbd44f06c249a77416bb66469ff27",
+      "installedAt": "2026-10-14T21:27:42.738Z"
     },
     "related": {
       "source": "github:McCio/quartz-plugin-related",
       "resolved": "https://github.com/McCio/quartz-plugin-related.git",
       "commit": "37f9933c598c045ff133b42c29baacd7d42c6aa7",
-      "installedAt": "2026-08-05T18:22:17.361Z"
+      "installedAt": "2026-10-14T21:28:24.292Z"
     }
   }
 }
